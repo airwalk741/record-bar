@@ -1,0 +1,29 @@
+.container {
+  width: 90vw;
+  margin: auto;
+  margin-top: 100px;
+
+  .timebar_area {
+    z-index: 1000;
+    position: relative;
+    height: 76px;
+  }
+
+  .no-select {
+    overflow: hidden;
+    width: 768;
+    height: 76;
+  }
+  .big-tick-axis {
+    width: 2000px;
+  }
+
+  line {
+    stroke: #444444;
+  }
+
+  .image {
+    z-index: 10001;
+    cursor: pointer;
+  }
+}
