@@ -19,9 +19,14 @@ import {
   drawUnderline,
   canvasX,
   canvasY,
+  drawVideoExistLine,
 } from "./ts/recordBar";
 
 import { CanvasSize, UserEvent } from "record-types";
+
+import mock from "./mock.json";
+
+const { dataList } = mock;
 
 const myCanvasSize: CanvasSize = {
   underLine: 100,
@@ -99,7 +104,12 @@ const RecordBar = ({}) => {
 
   // 버튼 클릭하면 긴선 기준 비꾸기
   useEffect(() => {
-    mousewheelData = 0;
+    // 스틱이 중요함
+    if (userStickTargetTime) {
+      mousewheelData = userStickTargetTime;
+    } else {
+      mousewheelData = 0;
+    }
     if (selectedTimeScope === 10) {
       longLine = 1000 * 60;
     } else if (selectedTimeScope === 60) {
@@ -188,6 +198,26 @@ const RecordBar = ({}) => {
         drawNextDateBox(ctx, location, inputDate, myCanvasSize);
       }
     }
+
+    // 영상 저장되어 있으면 그리기
+    dataList.forEach((item) => {
+      const start = new Date(item[0]).getTime();
+      const end = new Date(item[1]).getTime();
+
+      const startIndex = solutionTimeIndex(start, startWidthTime);
+      const endIndex = solutionTimeIndex(end, startWidthTime);
+      const startLocation = solutionLocation(
+        startIndex,
+        selectedTimeScope,
+        canvasContainer
+      ); // 그릴 위치 구하기
+      const endLocation = solutionLocation(
+        endIndex,
+        selectedTimeScope,
+        canvasContainer
+      ); // 그릴 위치 구하기
+      drawVideoExistLine(ctx, startLocation, endLocation, myCanvasSize);
+    });
 
     // 스틱부분
     if (!userStickTargetTime) {

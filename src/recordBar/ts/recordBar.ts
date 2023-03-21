@@ -129,6 +129,23 @@ function drawNextDateBox(
   ctx.fillText(date, location - 33, myCanvasSize.textHeight - 20);
 }
 
+/**
+ * 비디오 저장된 시간을 표시해주기 위함
+ * @param ctx
+ * @param start 시작 위치
+ * @param end 끝 위치
+ * @param myCanvasSize canvas 사이즈
+ */
+function drawVideoExistLine(
+  ctx: any,
+  start: number,
+  end: number,
+  myCanvasSize: CanvasSize
+) {
+  ctx.fillStyle = "#97caff";
+  ctx.fillRect(start, myCanvasSize.underLine - 15, end - start, 15);
+}
+
 // 짧은 선 그리기
 function drawShortline(ctx: any, location: number, myCanvasSize: CanvasSize) {
   ctx.fillRect(
@@ -172,4 +189,5 @@ export {
   drawUnderline,
   canvasX,
   canvasY,
+  drawVideoExistLine,
 };
