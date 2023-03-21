@@ -81,6 +81,8 @@ let setIntervalID: any = null;
 let isStickMouseOver = -1;
 let mousewheelData = 0;
 
+let frame = new Date().getSeconds();
+
 const RecordBar = ({}) => {
   const myCanvas = useRef() as MutableRefObject<HTMLCanvasElement>;
   const canvasContainer = useRef() as MutableRefObject<HTMLDivElement>;
@@ -89,18 +91,7 @@ const RecordBar = ({}) => {
     currentDate(new Date().getTime())
   );
 
-  // 1초마다 새로 그리기
-  useEffect(() => {
-    reTouch("");
-    setIntervalID = setInterval(() => {
-      reTouch("");
-    }, 1000);
-    return () => {
-      if (setIntervalID) {
-        clearInterval(setIntervalID);
-      }
-    };
-  }, []);
+  const requestAnimationRef = useRef<any>(null);
 
   // 버튼 클릭하면 긴선 기준 비꾸기
   useEffect(() => {
@@ -120,16 +111,30 @@ const RecordBar = ({}) => {
       longLine = 1000 * 60 * 60 * 4;
     }
 
-    if (setIntervalID) {
-      clearInterval(setIntervalID);
-    }
-    reTouch("", true);
-    setIntervalID = setInterval(() => {
-      reTouch("");
-    }, 1000);
+    requestAnimationRef.current = requestAnimationFrame(() =>
+      reTouch("", true)
+    );
+    return () => {
+      cancelAnimationFrame(requestAnimationRef.current);
+    };
   }, [selectedTimeScope]);
 
   function reTouch(event: string, isUnitChange?: boolean) {
+    const currentFrame = new Date().getSeconds();
+    if (!event) {
+      // unit 단위가 바뀔때는 다시 그리기
+      if (isUnitChange) {
+        frame = currentFrame;
+      } else if (currentFrame === frame) {
+        // 1초가 되지 않았다면 그리지 않고 다시 호출
+        requestAnimationRef.current = requestAnimationFrame(() => reTouch(""));
+        return;
+      } else {
+        // 1초되면 그리기
+        frame = currentFrame;
+      }
+    }
+
     const ctx: any = myCanvas.current.getContext("2d");
     ctx.canvas.width = canvasContainer.current.clientWidth;
     ctx.fillStyle = "rgb(160, 160, 160)";
@@ -236,6 +241,10 @@ const RecordBar = ({}) => {
     }
 
     setUseTime(currentDate(userStickTargetTime));
+    // 이벤트로 인한 호출이 아닐때만 다시 호출 할 수 있도록
+    if (!event) {
+      requestAnimationRef.current = requestAnimationFrame(() => reTouch(""));
+    }
   }
 
   // 클릭하면 그부분으로 스틱 옮기기
@@ -392,25 +401,33 @@ const RecordBar = ({}) => {
       </div>
       <div className={styles.btn_container}>
         <button
-          onClick={() => setSelectedTimeScope(10)}
+          onClick={() => {
+            setSelectedTimeScope(10);
+          }}
           disabled={selectedTimeScope === 10}
         >
           10분
         </button>
         <button
-          onClick={() => setSelectedTimeScope(60)}
+          onClick={() => {
+            setSelectedTimeScope(60);
+          }}
           disabled={selectedTimeScope === 60}
         >
           1시간
         </button>
         <button
-          onClick={() => setSelectedTimeScope(360)}
+          onClick={() => {
+            setSelectedTimeScope(360);
+          }}
           disabled={selectedTimeScope === 360}
         >
           6시간
         </button>
         <button
-          onClick={() => setSelectedTimeScope(60 * 24)}
+          onClick={() => {
+            setSelectedTimeScope(60 * 24);
+          }}
           disabled={selectedTimeScope === 60 * 24}
         >
           24시간
