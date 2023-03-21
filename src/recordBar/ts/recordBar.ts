@@ -5,7 +5,11 @@ interface CanvasSize {
   textHeight: number;
 }
 
-// 받은 시간 구하는 곳
+/**
+ * 시간 구하기
+ * @param data
+ * @returns YYYY-MM-DD hh:mm:ss
+ */
 function currentDate(data: string | number) {
   const resUtc = new Date(data);
   const year = resUtc.getFullYear();
@@ -19,7 +23,13 @@ function currentDate(data: string | number) {
   return `${year}-${month}-${date} ${hours}:${minutes}:${seconds}`;
 }
 
-// 위치가지고 index 구하기
+/**
+ * canvas 길이에 따른 % 시간 구하기 (80%(location)의 10분(selectedTimeScope)이라면 8분)
+ * @param location 위치
+ * @param selectedTimeScope 현재 time unit
+ * @param canvasContainer canvas
+ * @returns
+ */
 function solutionLocationIndex(
   location: number,
   selectedTimeScope: number,
@@ -97,9 +107,7 @@ function drawLongline(
   ctx.font = "15px bold";
   ctx.fillStyle = "black";
   ctx.fillText(
-    `${(
-      "0" + Math.floor((inputDate / (60 * 60 * 1000) + 9) % 24).toString()
-    ).slice(-2)}시 ${(
+    `${("0" + new Date(inputDate).getHours().toString()).slice(-2)}시 ${(
       "0" + Math.floor((inputDate / (60 * 1000)) % 60).toString()
     ).slice(-2)}분`,
     location - 25,
@@ -116,9 +124,9 @@ function drawNextDateBox(
 ) {
   const date = currentDate(inputDate).split(" ")[0];
   ctx.fillStyle = "rgb(202, 200, 200)";
-  ctx.fillRect(location - 35, myCanvasSize.textHeight - 38, 85, 25);
+  ctx.fillRect(location - 38, myCanvasSize.textHeight - 38, 90, 25);
   ctx.fillStyle = "black";
-  ctx.fillText(date, location - 30, myCanvasSize.textHeight - 20);
+  ctx.fillText(date, location - 33, myCanvasSize.textHeight - 20);
 }
 
 // 짧은 선 그리기

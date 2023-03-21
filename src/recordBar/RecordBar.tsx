@@ -21,25 +21,20 @@ import {
   canvasY,
 } from "./ts/recordBar";
 
-interface CanvasSize {
-  underLine: number; // 레코드바의 아랫줄 => 높이라고 보면 됨
-  longHeight: number; // 레코드 바의 긴 선 높이
-  shortHeight: number; // 레코드 바의 작은 선 높이
-  textHeight: number; // 레코드 바의 text 높이
-}
-
-interface UserEvent {
-  startX: number;
-  startY: number;
-  isClick: boolean;
-  isDrag: boolean;
-}
+import { CanvasSize, UserEvent } from "record-types";
 
 const myCanvasSize: CanvasSize = {
-  underLine: 80,
-  longHeight: 35,
-  shortHeight: 55,
-  textHeight: 20,
+  underLine: 100,
+  longHeight: 55,
+  shortHeight: 75,
+  textHeight: 40,
+};
+
+const dragValue: any = {
+  "10": 300,
+  "60": 900,
+  "360": 1000 * 6,
+  "1440": 1000 * 22,
 };
 
 const userEvent: UserEvent = {
@@ -49,13 +44,37 @@ const userEvent: UserEvent = {
   isDrag: false,
 };
 
+/**
+ * selectedTimeScope에 따른 선과 선사이의 시간
+ */
+const oneLineTime: any = {
+  "10": 10,
+  "60": 60,
+  "360": 60 * 6,
+  "1440": 60 * 20,
+};
+
+/**
+ * selectedTimeScope에 따라 긴 선인지 아닌지 확인하는 용도
+ */
+const longLineTime: any = {
+  "10": (hour: number, minute: number, second: number) =>
+    !second ? true : false,
+  "60": (hour: number, minute: number, second: number) =>
+    !second && minute % 10 === 0 ? true : false,
+  "360": (hour: number, minute: number, second: number) =>
+    !second && !minute ? true : false,
+  "1440": (hour: number, minute: number, second: number) =>
+    !second && !minute && hour % 4 === 0 ? true : false,
+};
+
 let startWidthTime: number;
 let longLine = 1000 * 60;
 let flagStick: number;
 let userStickTargetTime: number;
-let isUserEvent = false;
 let setIntervalID: any = null;
 let isStickMouseOver = -1;
+let mousewheelData = 0;
 
 const RecordBar = ({}) => {
   const myCanvas = useRef() as MutableRefObject<HTMLCanvasElement>;
@@ -65,6 +84,7 @@ const RecordBar = ({}) => {
     currentDate(new Date().getTime())
   );
 
+  // 1초마다 새로 그리기
   useEffect(() => {
     reTouch("");
     setIntervalID = setInterval(() => {
@@ -79,85 +99,98 @@ const RecordBar = ({}) => {
 
   // 버튼 클릭하면 긴선 기준 비꾸기
   useEffect(() => {
+    mousewheelData = 0;
     if (selectedTimeScope === 10) {
       longLine = 1000 * 60;
     } else if (selectedTimeScope === 60) {
       longLine = 1000 * 60 * 10;
     } else if (selectedTimeScope === 360) {
       longLine = 1000 * 60 * 60;
-    } else if (selectedTimeScope === 360) {
-      longLine = 1000 * 60 * 60 * 24;
+    } else if (selectedTimeScope === 1440) {
+      longLine = 1000 * 60 * 60 * 4;
     }
 
     if (setIntervalID) {
       clearInterval(setIntervalID);
     }
-    reTouch("");
+    reTouch("", true);
     setIntervalID = setInterval(() => {
       reTouch("");
     }, 1000);
   }, [selectedTimeScope]);
 
-  function reTouch(event: string) {
-    // underline 그리기
+  function reTouch(event: string, isUnitChange?: boolean) {
     const ctx: any = myCanvas.current.getContext("2d");
     ctx.canvas.width = canvasContainer.current.clientWidth;
     ctx.fillStyle = "rgb(160, 160, 160)";
+
     // 밑에 긴 선 그리기
     drawUnderline(ctx, myCanvas, myCanvasSize);
     // 현재 시간
-    const currentStartTime =
-      parseInt((new Date().getTime() / 1000).toString()) * 1000;
-    console.log(selectedTimeScope);
+    if (mousewheelData && !event) {
+      mousewheelData += 1000;
+    }
+
+    // 마우스 휠로 이동했으면 이동한 값이 현재 값
+    const currentStartTime = mousewheelData
+      ? parseInt((new Date(mousewheelData).getTime() / 1000).toString()) * 1000
+      : parseInt((new Date().getTime() / 1000).toString()) * 1000;
+
     // 현재 시간과 사용자가 이벤트한 시간의 차이
     const differTime = parseInt(
       (
-        (selectedTimeScope * 1000 -
-          (currentStartTime % (selectedTimeScope * 1000))) /
+        (oneLineTime[`${selectedTimeScope}`] * 1000 -
+          (currentStartTime % (oneLineTime[`${selectedTimeScope}`] * 1000))) /
         1000
       ).toString()
     );
 
     // div의 80% 지점을 기준으로 깃발 꽂기
+    // 10분이라면 8분
+    // 60분이라면 48분
     const flagIndex = solutionLocationIndex(
       canvasContainer.current.clientWidth * 0.8,
-      selectedTimeScope,
+      oneLineTime[`${selectedTimeScope}`],
       canvasContainer
     );
 
     flagStick = selectedTimeScope * 0.8;
     startWidthTime = currentStartTime - 1000 * flagIndex;
-
     for (
       let i = differTime;
       i <= 60 * selectedTimeScope;
-      i += selectedTimeScope
+      i += oneLineTime[`${selectedTimeScope}`]
     ) {
+      ctx.fillStyle = "rgb(160, 160, 160)";
+
       const inputDate = solutionTime(i, startWidthTime); // i 가지고 시간 구하기
       const location = solutionLocation(i, selectedTimeScope, canvasContainer); // 그릴 위치 구하기
 
-      if (inputDate % longLine === 0) {
+      const resUtc = new Date(inputDate);
+      const hours = Number(resUtc.getHours());
+      const minutes = Number(resUtc.getMinutes());
+      const seconds = resUtc.getSeconds();
+
+      if (longLineTime[selectedTimeScope](hours, minutes, seconds)) {
         // 긴선 그리기
         drawLongline(ctx, location, inputDate, myCanvasSize);
-        if (
-          // 다음날짜 box 처리하기 및 날짜 입력
-          Math.floor((inputDate / (60 * 60 * 1000) + 9) % 24) === 0 &&
-          Math.floor((inputDate / (60 * 1000)) % 60) === 0
-        ) {
-          drawNextDateBox(ctx, location, inputDate, myCanvasSize);
-        }
-        ctx.fillStyle = "rgb(160, 160, 160)";
-      } else if (
-        inputDate % (selectedTimeScope * 1000) === 0 &&
-        inputDate % longLine !== 0
-      ) {
+      } else {
         // 짧은 선 그리기
         drawShortline(ctx, location, myCanvasSize);
+      }
+
+      if (
+        // 다음날짜 회색 box 처리하기 및 날짜 입력
+        hours === 0 &&
+        minutes === 0 &&
+        seconds === 0
+      ) {
+        drawNextDateBox(ctx, location, inputDate, myCanvasSize);
       }
     }
 
     // 스틱부분
-    if (!userEvent.isClick) {
+    if (!userStickTargetTime) {
       userStickTargetTime = currentStartTime;
     } else {
       if (event !== "click") {
@@ -195,7 +228,54 @@ const RecordBar = ({}) => {
     }
   }
 
+  // 스틱 마우스 오버했을 때 색 바꾸기 및 눈금자 포인터
   useEffect(() => {
+    // 스틱 잡고 움직이기
+    const mouseGrabMove = (event: any) => {
+      if (!userEvent.isDrag) return;
+      userEvent.startX = canvasX(myCanvas, event.clientX);
+      userEvent.startY = canvasY(myCanvas, event.clientY);
+      const targetIndex =
+        (userEvent.startX * 60 * selectedTimeScope) /
+        canvasContainer.current.clientWidth;
+      const userClickTime = startWidthTime + 1000 * targetIndex;
+
+      const { startX, startY, isClick, isDrag } = userEvent;
+      userStickTargetTime = userClickTime;
+      reTouch("click");
+    };
+
+    // 스틱 잡기
+    const mouseDown = (event: any) => {
+      const startX = canvasX(myCanvas, event.clientX);
+      const startY = canvasY(myCanvas, event.clientY);
+
+      if (
+        startY >= myCanvasSize.longHeight &&
+        startY < myCanvasSize.underLine + 2
+      ) {
+        let newIsStickMouseOver: number;
+        // 스틱 부분
+        const index = solutionTimeIndex(userStickTargetTime, startWidthTime);
+        const targetX = solutionLocation(
+          index,
+          selectedTimeScope,
+          canvasContainer
+        );
+
+        if (Math.abs(targetX - startX) <= 15) {
+          newIsStickMouseOver = targetX;
+          userEvent.isDrag = true;
+        }
+      }
+    };
+
+    // 스틱 움직이는 것 종료
+    const mouseup = () => {
+      userEvent.isDrag = false;
+    };
+
+    // 스틱 파란색
     const mouseOver = (event: any) => {
       const startX = canvasX(myCanvas, event.clientX);
       const startY = canvasY(myCanvas, event.clientY);
@@ -227,6 +307,10 @@ const RecordBar = ({}) => {
           reTouch("click");
         }
       } else {
+        if (isStickMouseOver !== -1) {
+          isStickMouseOver = -1;
+          reTouch("click");
+        }
         if (myCanvas.current) {
           myCanvas.current.style.cursor = "auto";
         }
@@ -234,10 +318,31 @@ const RecordBar = ({}) => {
     };
 
     window.addEventListener("mousemove", mouseOver);
+    window.addEventListener("mousemove", mouseGrabMove);
+    window.addEventListener("mouseup", mouseup);
+    window.addEventListener("mousedown", mouseDown);
     return () => {
       window.removeEventListener("mousemove", mouseOver);
+      window.removeEventListener("mousemove", mouseGrabMove);
+      window.removeEventListener("mouseup", mouseup);
+      window.removeEventListener("mousedown", mouseDown);
     };
   }, [selectedTimeScope]);
+
+  const mouseWheel = (event: any) => {
+    const data = event.deltaY;
+    const date = mousewheelData ? new Date(mousewheelData) : new Date();
+    const currentStartTime =
+      parseInt(
+        (
+          (date.getTime() + data * dragValue[`${selectedTimeScope}`]) /
+          1000
+        ).toString()
+      ) * 1000;
+
+    mousewheelData = currentStartTime;
+    reTouch("click");
+  };
 
   return (
     <div className={styles.total_contaner}>
@@ -252,6 +357,7 @@ const RecordBar = ({}) => {
           ref={myCanvas}
           className={styles.canvas}
           height={myCanvasSize.underLine + 2}
+          onWheel={mouseWheel}
         ></canvas>
       </div>
       <div className={styles.btn_container}>
@@ -274,8 +380,8 @@ const RecordBar = ({}) => {
           6시간
         </button>
         <button
-          onClick={() => setSelectedTimeScope(1440)}
-          disabled={selectedTimeScope === 1440}
+          onClick={() => setSelectedTimeScope(60 * 24)}
+          disabled={selectedTimeScope === 60 * 24}
         >
           24시간
         </button>
