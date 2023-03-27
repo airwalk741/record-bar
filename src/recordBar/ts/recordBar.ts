@@ -1,10 +1,4 @@
-interface CanvasSize {
-  underLine: number;
-  longHeight: number;
-  shortHeight: number;
-  textHeight: number;
-}
-
+import { CanvasSize } from "record-types";
 /**
  * 시간 구하기
  * @param data
@@ -176,6 +170,31 @@ function canvasY(myCanvas: any, clientY: number) {
   );
 }
 
+/**
+ * live 시간 이후인지 아닌지 확인 용도
+ * @param startX x 좌표
+ * @param startWidthTime 시작 시간
+ * @param selectedTimeScope 현재 unit 단위
+ * @param canvasContainer canvasRef
+ * @returns
+ */
+const checkOverLive = (
+  startX: number,
+  startWidthTime: number,
+  selectedTimeScope: number,
+  canvasContainer: any
+) => {
+  const currentDate = new Date().getTime();
+  const currentDateIndex = solutionTimeIndex(currentDate, startWidthTime);
+  const currentDateLocation = solutionLocation(
+    currentDateIndex,
+    selectedTimeScope,
+    canvasContainer
+  );
+
+  return startX > currentDateLocation;
+};
+
 export {
   currentDate,
   solutionLocationIndex,
@@ -190,4 +209,5 @@ export {
   canvasX,
   canvasY,
   drawVideoExistLine,
+  checkOverLive,
 };

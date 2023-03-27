@@ -20,7 +20,6 @@ import {
   canvasX,
   canvasY,
   drawVideoExistLine,
-  checkOverLive,
 } from "./ts/recordBar";
 
 import { CanvasSize, UserEvent } from "record-types";
@@ -250,25 +249,16 @@ const RecordBar = ({}) => {
 
   // 클릭하면 그부분으로 스틱 옮기기
   function handleClick(event: any) {
-    const startX = canvasX(myCanvas, event.clientX);
-    const startY = canvasY(myCanvas, event.clientY);
-
-    if (
-      checkOverLive(startX, startWidthTime, selectedTimeScope, canvasContainer)
-    ) {
-      myCanvas.current.style.cursor = "auto";
-      return;
-    }
-
     userEvent.isClick = true;
-    userEvent.startX = startX;
-    userEvent.startY = startY;
-
+    userEvent.startX = canvasX(myCanvas, event.clientX);
+    userEvent.startY = canvasY(myCanvas, event.clientY);
     const targetIndex =
       (userEvent.startX * 60 * selectedTimeScope) /
       canvasContainer.current.clientWidth;
     // 유저가 클릭한 위치 구하기
     const userClickTime = startWidthTime + 1000 * targetIndex;
+
+    const { startX, startY, isClick, isDrag } = userEvent;
 
     if (startY >= myCanvasSize.longHeight && startY <= myCanvasSize.underLine) {
       userEvent.isDrag = false;
@@ -279,47 +269,18 @@ const RecordBar = ({}) => {
 
   // 스틱 마우스 오버했을 때 색 바꾸기 및 눈금자 포인터
   useEffect(() => {
-    /**
-     * 마우스무브 할때 text select 안하는것 (마우스 드레그하면 선택되는 기능 하지 않게 하기 위해 작성)
-     */
-    const unFocus = function () {
-      const doc: any = document;
-      const win: any = window;
-
-      if (doc.selection) {
-        doc.selection.empty();
-      } else {
-        win.getSelection().removeAllRanges();
-      }
-    };
-
     // 스틱 잡고 움직이기
     const mouseGrabMove = (event: any) => {
       if (!userEvent.isDrag) return;
-      unFocus();
+      userEvent.startX = canvasX(myCanvas, event.clientX);
+      userEvent.startY = canvasY(myCanvas, event.clientY);
+      const targetIndex =
+        (userEvent.startX * 60 * selectedTimeScope) /
+        canvasContainer.current.clientWidth;
+      const userClickTime = startWidthTime + 1000 * targetIndex;
 
-      const startX = canvasX(myCanvas, event.clientX);
-      const startY = canvasY(myCanvas, event.clientY);
-
-      if (
-        !checkOverLive(
-          startX,
-          startWidthTime,
-          selectedTimeScope,
-          canvasContainer
-        )
-      ) {
-        userEvent.startX = startX;
-        userEvent.startY = startY;
-
-        const targetIndex =
-          (userEvent.startX * 60 * selectedTimeScope) /
-          canvasContainer.current.clientWidth;
-        const userClickTime = startWidthTime + 1000 * targetIndex;
-
-        userStickTargetTime = userClickTime;
-      }
-
+      const { startX, startY, isClick, isDrag } = userEvent;
+      userStickTargetTime = userClickTime;
       reTouch("click");
     };
 
@@ -357,18 +318,6 @@ const RecordBar = ({}) => {
     const mouseOver = (event: any) => {
       const startX = canvasX(myCanvas, event.clientX);
       const startY = canvasY(myCanvas, event.clientY);
-
-      if (
-        checkOverLive(
-          startX,
-          startWidthTime,
-          selectedTimeScope,
-          canvasContainer
-        )
-      ) {
-        myCanvas.current.style.cursor = "auto";
-        return;
-      }
 
       if (
         startY >= myCanvasSize.longHeight &&
